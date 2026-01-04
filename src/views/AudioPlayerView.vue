@@ -9,61 +9,65 @@
 
       <!-- Upload Section -->
       <div class="mb-8">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Audio Upload -->
-          <div
-            class="glass rounded-2xl p-8 text-center shadow-xl border-2 border-dashed border-white/30 hover:border-indigo-400 transition-all duration-300 cursor-pointer card-hover"
-            @drop.prevent="handleAudioDrop" @dragover.prevent>
-            <input ref="audioInput" type="file" accept="audio/*" @change="handleAudioSelect" class="hidden" />
-            <div v-if="!selectedAudio" class="upload-placeholder">
-              <div class="text-5xl mb-4">🎵</div>
-              <p class="mb-4 text-lg font-semibold text-gray-700">拖拽音频文件到此处或点击选择</p>
-              <button @click="$refs.audioInput.click()"
-                class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
-                选择音频文件
-              </button>
-            </div>
-            <div v-else class="flex flex-col items-center gap-3">
-              <div class="text-4xl">✅</div>
-              <div class="text-center">
-                <p class="text-lg font-semibold text-gray-800 mb-1">
-                  已选择音频: <span class="text-indigo-600">{{ selectedAudio.name }}</span>
-                </p>
-                <p class="text-gray-600 text-sm font-medium">大小: {{ formatFileSize(selectedAudio.size) }}</p>
-              </div>
-              <button @click="clearAudio"
-                class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
-                清除
-              </button>
-            </div>
+        <div
+          class="glass rounded-2xl p-8 text-center shadow-xl border-2 border-dashed border-white/30 hover:border-indigo-400 transition-all duration-300 cursor-pointer card-hover"
+          @drop.prevent="handleFileDrop" @dragover.prevent>
+          <input ref="fileInput" type="file" accept="audio/*,.srt" @change="handleFileSelect" class="hidden" multiple />
+          <div v-if="!selectedAudio && !selectedSrt" class="upload-placeholder">
+            <div class="text-5xl mb-4">📁</div>
+            <p class="mb-4 text-lg font-semibold text-gray-700">拖拽音频文件或SRT字幕文件到此处或点击选择</p>
+            <p class="mb-4 text-sm text-gray-600">支持音频文件（mp3, wav, ogg等）和SRT字幕文件</p>
+            <button @click="$refs.fileInput.click()"
+              class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
+              选择文件
+            </button>
           </div>
-
-          <!-- SRT Upload -->
-          <div
-            class="glass rounded-2xl p-8 text-center shadow-xl border-2 border-dashed border-white/30 hover:border-indigo-400 transition-all duration-300 cursor-pointer card-hover"
-            @drop.prevent="handleSrtDrop" @dragover.prevent>
-            <input ref="srtInput" type="file" accept=".srt" @change="handleSrtSelect" class="hidden" />
-            <div v-if="!selectedSrt" class="upload-placeholder">
-              <div class="text-5xl mb-4">📄</div>
-              <p class="mb-4 text-lg font-semibold text-gray-700">拖拽SRT字幕文件到此处或点击选择</p>
-              <button @click="$refs.srtInput.click()"
-                class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
-                选择SRT文件
-              </button>
-            </div>
-            <div v-else class="flex flex-col items-center gap-3">
-              <div class="text-4xl">✅</div>
-              <div class="text-center">
-                <p class="text-lg font-semibold text-gray-800 mb-1">
-                  已选择字幕: <span class="text-indigo-600">{{ selectedSrt.name }}</span>
-                </p>
-                <p class="text-gray-600 text-sm font-medium">大小: {{ formatFileSize(selectedSrt.size) }}</p>
+          <div v-else class="flex flex-col items-center gap-4">
+            <!-- Audio File Display -->
+            <div v-if="selectedAudio"
+              class="w-full bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border-2 border-indigo-200">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 flex-1">
+                  <div class="text-3xl">🎵</div>
+                  <div class="text-left flex-1">
+                    <p class="text-lg font-semibold text-gray-800 mb-1">
+                      音频文件: <span class="text-indigo-600">{{ selectedAudio.name }}</span>
+                    </p>
+                    <p class="text-gray-600 text-sm font-medium">大小: {{ formatFileSize(selectedAudio.size) }}</p>
+                  </div>
+                </div>
+                <button @click="clearAudio"
+                  class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
+                  清除
+                </button>
               </div>
-              <button @click="clearSrt"
-                class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
-                清除
-              </button>
             </div>
+
+            <!-- SRT File Display -->
+            <div v-if="selectedSrt"
+              class="w-full bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 flex-1">
+                  <div class="text-3xl">📄</div>
+                  <div class="text-left flex-1">
+                    <p class="text-lg font-semibold text-gray-800 mb-1">
+                      字幕文件: <span class="text-purple-600">{{ selectedSrt.name }}</span>
+                    </p>
+                    <p class="text-gray-600 text-sm font-medium">大小: {{ formatFileSize(selectedSrt.size) }}</p>
+                  </div>
+                </div>
+                <button @click="clearSrt"
+                  class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
+                  清除
+                </button>
+              </div>
+            </div>
+
+            <!-- Add More Files Button -->
+            <button @click="$refs.fileInput.click()"
+              class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
+              添加更多文件
+            </button>
           </div>
         </div>
       </div>
@@ -84,6 +88,14 @@
 
           <!-- Current Caption Display -->
           <div class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="text-lg font-semibold text-gray-800">当前字幕</h4>
+              <button v-if="currentCaption || lastValidCaption" @click="toggleFullscreen"
+                class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm flex items-center gap-2">
+                <span>{{ isFullscreen ? '退出全屏' : '全屏显示' }}</span>
+                <span>{{ isFullscreen ? '⤓' : '⤢' }}</span>
+              </button>
+            </div>
             <div
               class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-xl text-center min-h-[120px] flex items-center justify-center border-2 border-indigo-200 shadow-inner">
               <p v-if="currentCaption" class="text-2xl font-semibold text-gray-800 leading-relaxed">
@@ -133,15 +145,45 @@
         </div>
       </div>
     </div>
+
+    <!-- Fullscreen Subtitle Overlay -->
+    <Transition name="fade">
+      <div v-if="isFullscreen"
+        class="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex flex-col items-center justify-center p-8"
+        tabindex="-1">
+        <div class="absolute top-4 right-4 z-10">
+          <button @click="exitFullscreen"
+            class="px-6 py-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2 border border-white/20">
+            <span>退出全屏</span>
+            <span>⤓</span>
+          </button>
+        </div>
+        <div class="text-center max-w-7xl w-full px-8 flex-1 flex items-center justify-center">
+          <p v-if="currentCaption || lastValidCaption"
+            class="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-light text-white leading-relaxed drop-shadow-2xl animate-fade-in">
+            {{ currentCaption || lastValidCaption }}
+          </p>
+          <p v-else class="text-4xl md:text-5xl text-white/40 font-light">
+            字幕将在这里显示
+          </p>
+        </div>
+        <!-- Progress Bar -->
+        <div class="absolute bottom-0 left-0 right-0 w-full h-1 bg-black/20">
+          <div
+            class="h-full bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 transition-all duration-300 ease-out"
+            :style="{ width: progressPercentage + '%' }">
+          </div>
+        </div>
+      </div>
+    </Transition>
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick, onUnmounted } from 'vue'
 import { audioAPI } from '../services/api'
 
-const audioInput = ref(null)
-const srtInput = ref(null)
+const fileInput = ref(null)
 const audioPlayer = ref(null)
 const selectedAudio = ref(null)
 const selectedSrt = ref(null)
@@ -150,65 +192,80 @@ const audioUrl = ref(null)
 const captions = ref([])
 const currentCaption = ref('')
 const currentTime = ref(0)
+const duration = ref(0)
 const captionListContainer = ref(null)
 const captionRefs = ref([])
 const currentCaptionIndex = ref(-1)
 const lastValidCaption = ref('') // 存储上一个有效的字幕内容
+const isFullscreen = ref(false)
 
-const handleAudioSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) {
+// Smart file type detection
+const detectFileType = (file) => {
+  // Check by extension first (more reliable for SRT)
+  if (file.name.toLowerCase().endsWith('.srt')) {
+    return 'srt'
+  }
+  // Check by MIME type for audio files
+  if (file.type.startsWith('audio/')) {
+    return 'audio'
+  }
+  // Fallback: check common audio extensions
+  const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma', '.opus']
+  const lowerName = file.name.toLowerCase()
+  if (audioExtensions.some(ext => lowerName.endsWith(ext))) {
+    return 'audio'
+  }
+  return null
+}
+
+const handleFile = (file) => {
+  const fileType = detectFileType(file)
+
+  if (fileType === 'audio') {
     selectedAudio.value = file
     audioUrl.value = URL.createObjectURL(file)
     captions.value = []
     currentCaption.value = ''
     currentCaptionIndex.value = -1
     lastValidCaption.value = ''
-  }
-}
-
-const handleAudioDrop = (event) => {
-  const file = event.dataTransfer.files[0]
-  if (file && file.type.startsWith('audio/')) {
-    selectedAudio.value = file
-    audioUrl.value = URL.createObjectURL(file)
-    captions.value = []
-    currentCaption.value = ''
-    currentCaptionIndex.value = -1
-    lastValidCaption.value = ''
-  } else {
-    error.value = '请选择音频文件'
-  }
-}
-
-const handleSrtSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) {
+    error.value = null
+  } else if (fileType === 'srt') {
     selectedSrt.value = file
     parseSrtFile(file)
+    error.value = null
+  } else {
+    error.value = '不支持的文件类型，请选择音频文件或SRT字幕文件'
   }
 }
 
-const handleSrtDrop = (event) => {
-  const file = event.dataTransfer.files[0]
-  if (file && file.name.endsWith('.srt')) {
-    selectedSrt.value = file
-    parseSrtFile(file)
-  } else {
-    error.value = '请选择SRT文件'
+const handleFileSelect = (event) => {
+  const files = Array.from(event.target.files)
+  files.forEach(file => {
+    handleFile(file)
+  })
+  // Reset input to allow selecting the same file again
+  if (fileInput.value) {
+    fileInput.value.value = ''
   }
+}
+
+const handleFileDrop = (event) => {
+  const files = Array.from(event.dataTransfer.files)
+  files.forEach(file => {
+    handleFile(file)
+  })
 }
 
 const clearAudio = () => {
+  if (audioUrl.value) {
+    URL.revokeObjectURL(audioUrl.value)
+  }
   selectedAudio.value = null
   audioUrl.value = null
   captions.value = []
   currentCaption.value = ''
   currentCaptionIndex.value = -1
   lastValidCaption.value = ''
-  if (audioInput.value) {
-    audioInput.value.value = ''
-  }
 }
 
 const clearSrt = () => {
@@ -217,9 +274,6 @@ const clearSrt = () => {
   currentCaption.value = ''
   currentCaptionIndex.value = -1
   lastValidCaption.value = ''
-  if (srtInput.value) {
-    srtInput.value.value = ''
-  }
 }
 
 const formatFileSize = (bytes) => {
@@ -294,6 +348,9 @@ const timeToSeconds = (timeStr) => {
 
 const onAudioLoaded = () => {
   // Audio loaded
+  if (audioPlayer.value) {
+    duration.value = audioPlayer.value.duration || 0
+  }
 }
 
 const setCaptionRef = (el, index) => {
@@ -343,6 +400,9 @@ const scrollToCurrentCaption = async () => {
 const updateCaption = async () => {
   if (!audioPlayer.value) return
   currentTime.value = audioPlayer.value.currentTime
+  if (audioPlayer.value.duration && !duration.value) {
+    duration.value = audioPlayer.value.duration
+  }
 
   const current = captions.value.find(
     (caption) => currentTime.value >= caption.start && currentTime.value <= caption.end,
@@ -385,4 +445,39 @@ const formatTime = (seconds) => {
   }
   return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
 }
+
+const progressPercentage = computed(() => {
+  if (!duration.value || duration.value === 0) return 0
+  return Math.min(100, (currentTime.value / duration.value) * 100)
+})
+
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+  if (isFullscreen.value) {
+    // Prevent body scroll when in fullscreen
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.overflow = ''
+  }
+}
+
+const exitFullscreen = () => {
+  isFullscreen.value = false
+  document.body.style.overflow = ''
+}
+
+const handleKeyDown = (event) => {
+  if (event.key === 'Escape' && isFullscreen.value) {
+    exitFullscreen()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+  document.body.style.overflow = ''
+})
 </script>
