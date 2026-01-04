@@ -100,6 +100,24 @@ export const audioAPI = {
   async deleteModel(modelName) {
     return await api.delete('/model/delete', { params: { model_name: modelName } })
   },
+
+  // 翻译SRT字幕文件
+  async translateSRT(file, targetLanguage = 'en', sourceLanguage = null) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('target_language', targetLanguage)
+    if (sourceLanguage) {
+      formData.append('source_language', sourceLanguage)
+    }
+
+    // 使用axios直接获取blob
+    const response = await axios.post('/api/translate-srt', formData, {
+      responseType: 'blob',
+      timeout: 120000, // 2分钟超时，翻译可能需要更长时间
+    })
+
+    return response
+  },
 }
 
 export default api

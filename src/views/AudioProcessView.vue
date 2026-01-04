@@ -1,203 +1,193 @@
 <template>
-  <div class="max-w-4xl mx-auto p-8">
-    <h1 class="text-center text-3xl font-bold text-gray-800 mb-8">AI音频处理</h1>
+  <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold text-white mb-4 drop-shadow-lg">AI 音频处理</h1>
+        <p class="text-xl text-white/90 font-medium">上传音频文件进行转录和处理</p>
+      </div>
 
-    <!-- Upload Section -->
-    <div class="mb-8">
-      <div
-        class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center bg-gray-50 hover:border-primary hover:bg-primary-light transition-all duration-300 cursor-pointer"
-        @drop.prevent="handleDrop"
-        @dragover.prevent
-      >
-        <input
-          ref="fileInput"
-          type="file"
-          accept="audio/*"
-          @change="handleFileSelect"
-          class="hidden"
-        />
-        <div v-if="!selectedFile" class="upload-placeholder">
-          <p class="mb-4 text-gray-600">拖拽音频文件到此处或点击选择</p>
-          <button
-            @click="$refs.fileInput.click()"
-            class="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover transition-colors duration-300 font-medium"
-          >
-            选择文件
-          </button>
-        </div>
-        <div v-else class="flex flex-col items-center gap-2">
-          <p class="text-gray-700">
-            已选择: <span class="font-medium">{{ selectedFile.name }}</span>
-          </p>
-          <p class="text-gray-600">大小: {{ formatFileSize(selectedFile.size) }}</p>
-          <button
-            @click="clearFile"
-            class="mt-2 px-6 py-3 bg-destructive text-white rounded hover:bg-destructive-hover transition-colors duration-300 font-medium"
-          >
-            清除
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Operations Section -->
-    <div class="mb-8" v-if="selectedFile">
-      <h3 class="text-xl font-semibold text-gray-800 mb-4">处理操作</h3>
-      <div class="flex gap-4 justify-center flex-wrap">
-        <button
-          @click="processAudio('analyze')"
-          :disabled="processing"
-          class="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-300 font-medium"
-        >
-          分析音频
-        </button>
-        <button
-          @click="processAudio('noise_reduction')"
-          :disabled="processing"
-          class="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-300 font-medium"
-        >
-          降噪
-        </button>
-        <button
-          @click="processAudio('format_convert')"
-          :disabled="processing"
-          class="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-300 font-medium"
-        >
-          格式转换
-        </button>
-      </div>
-    </div>
-
-    <!-- Transcription Section -->
-    <div class="mb-8 p-6 bg-gray-50 rounded-lg" v-if="selectedFile">
-      <h3 class="text-xl font-semibold text-gray-800 mb-4">Whisper 语音转录</h3>
-      <div class="flex gap-6 mb-4 flex-wrap">
-        <div class="flex flex-col gap-2 flex-1 min-w-[200px]">
-          <label for="model-name" class="font-medium text-gray-700">模型名称:</label>
-          <input
-            id="model-name"
-            v-model="whisperModelName"
-            :disabled="processing"
-            list="model-suggestions"
-            placeholder="输入模型名称，如: base, openai/whisper-large-v3"
-            class="p-2 border border-gray-300 rounded bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-          <datalist id="model-suggestions">
-            <option
-              v-for="(model, modelName) in downloadedModels"
-              :key="modelName"
-              :value="modelName"
-            >
-              {{ model.name }} ({{ model.speed }}, {{ model.accuracy }})
-            </option>
-          </datalist>
-        </div>
-        <div class="flex flex-col gap-2 flex-1 min-w-[200px]">
-          <label for="language" class="font-medium text-gray-700">语言 (可选):</label>
-          <select
-            id="language"
-            v-model="whisperLanguage"
-            :disabled="processing"
-            class="p-2 border border-gray-300 rounded bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="">自动检测</option>
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-          </select>
-        </div>
-      </div>
-      <button
-        @click="transcribeAudio"
-        :disabled="processing"
-        class="px-8 py-3 bg-transcription text-white rounded w-full max-w-xs hover:bg-transcription-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-300 font-medium text-base"
-      >
-        {{ transcribing ? '转录中...' : '开始转录' }}
-      </button>
-    </div>
-
-    <!-- Transcription Result -->
-    <div
-      class="mb-8 p-6 bg-transcription-light rounded-lg border border-transcription-border"
-      v-if="transcriptionResult"
-    >
-      <h3 class="text-xl font-semibold text-gray-800 mb-4">转录结果</h3>
-      <div class="flex gap-8 mb-4 pb-4 border-b border-transcription-border flex-wrap">
-        <p class="text-gray-600 m-0">
-          <strong class="text-gray-700">检测语言:</strong>
-          {{ transcriptionResult.language || '未知' }}
-        </p>
-        <p class="text-gray-600 m-0">
-          <strong class="text-gray-700">使用模型:</strong> {{ transcriptionResult.model_name }}
-        </p>
-      </div>
-      <div
-        class="bg-white p-6 rounded mb-4 text-lg leading-relaxed whitespace-pre-wrap break-words text-gray-800"
-      >
-        <p class="m-0">{{ transcriptionResult.text }}</p>
-      </div>
-      <div
-        class="mt-6"
-        v-if="transcriptionResult.segments && transcriptionResult.segments.length > 0"
-      >
-        <h4 class="text-lg font-semibold text-gray-800 mb-4">分段详情</h4>
-        <div class="max-h-96 overflow-y-auto bg-white p-4 rounded">
-          <div
-            v-for="(segment, index) in transcriptionResult.segments"
-            :key="index"
-            class="mb-4 pb-4 border-b border-gray-200 last:mb-0 last:pb-0 last:border-b-0"
-          >
-            <div class="text-sm text-gray-600 mb-2 font-medium">
-              {{ formatTime(segment.start) }} - {{ formatTime(segment.end) }}
+      <!-- Upload Section -->
+      <div class="mb-8">
+        <div
+          class="glass rounded-2xl p-12 text-center shadow-xl border-2 border-dashed border-white/30 hover:border-indigo-400 transition-all duration-300 cursor-pointer card-hover"
+          @drop.prevent="handleDrop" @dragover.prevent>
+          <input ref="fileInput" type="file" accept="audio/*" @change="handleFileSelect" class="hidden" />
+          <div v-if="!selectedFile" class="upload-placeholder">
+            <div class="text-6xl mb-6">🎵</div>
+            <p class="mb-6 text-xl font-semibold text-gray-700">拖拽音频文件到此处或点击选择</p>
+            <button @click="$refs.fileInput.click()"
+              class="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
+              选择文件
+            </button>
+          </div>
+          <div v-else class="flex flex-col items-center gap-4">
+            <div class="text-5xl">✅</div>
+            <div class="text-center">
+              <p class="text-xl font-semibold text-gray-800 mb-2">
+                已选择: <span class="text-indigo-600">{{ selectedFile.name }}</span>
+              </p>
+              <p class="text-gray-600 font-medium">大小: {{ formatFileSize(selectedFile.size) }}</p>
             </div>
-            <div class="text-gray-800 leading-relaxed">{{ segment.text }}</div>
+            <button @click="clearFile"
+              class="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl">
+              清除文件
+            </button>
           </div>
         </div>
       </div>
-      <div class="flex gap-4 mt-6">
-        <button
-          @click="copyTranscription"
-          class="px-6 py-2 bg-success text-white rounded hover:bg-success-hover transition-colors duration-300 text-sm font-medium"
-        >
-          复制文本
-        </button>
-        <button
-          @click="downloadSRT"
-          :disabled="downloadingSRT"
-          class="px-6 py-2 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-300 text-sm font-medium"
-        >
-          {{ downloadingSRT ? '下载中...' : '下载SRT字幕' }}
-        </button>
-      </div>
-    </div>
 
-    <!-- Result Section -->
-    <div class="mb-8 p-4 bg-gray-100 rounded-lg" v-if="result">
-      <h3 class="text-xl font-semibold text-gray-800 mb-4">处理结果</h3>
-      <div class="bg-white p-4 rounded overflow-x-auto">
-        <pre class="m-0 text-sm text-gray-800">{{ JSON.stringify(result, null, 2) }}</pre>
+      <!-- Operations Section -->
+      <div class="mb-8" v-if="selectedFile">
+        <div class="glass rounded-2xl p-6 shadow-xl border border-white/20">
+          <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+            <span>⚙️</span>
+            <span>处理操作</span>
+          </h3>
+          <div class="flex gap-4 justify-center flex-wrap">
+            <button @click="processAudio('analyze')" :disabled="processing"
+              class="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
+              🔍 分析音频
+            </button>
+            <button @click="processAudio('noise_reduction')" :disabled="processing"
+              class="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:from-purple-600 hover:to-pink-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
+              🎚️ 降噪
+            </button>
+            <button @click="processAudio('format_convert')" :disabled="processing"
+              class="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
+              🔄 格式转换
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Error Section -->
-    <div class="mb-8" v-if="error">
-      <div
-        class="p-4 bg-red-50 border border-red-200 rounded text-red-700 flex justify-between items-center"
-      >
-        <p class="m-0 font-medium">错误: {{ error }}</p>
-        <button
-          @click="error = null"
-          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-300 text-sm font-medium"
-        >
-          关闭
-        </button>
+      <!-- Transcription Section -->
+      <div class="mb-8" v-if="selectedFile">
+        <div class="glass rounded-2xl p-8 shadow-xl border border-white/20">
+          <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+            <span>🎤</span>
+            <span>Whisper 语音转录</span>
+          </h3>
+          <div class="grid md:grid-cols-2 gap-6 mb-6">
+            <div class="flex flex-col gap-2">
+              <label for="model-name" class="font-semibold text-gray-700 flex items-center gap-2">
+                <span>🤖</span>
+                <span>模型名称:</span>
+              </label>
+              <input id="model-name" v-model="whisperModelName" :disabled="processing" list="model-suggestions"
+                placeholder="输入模型名称，如: base, openai/whisper-large-v3"
+                class="p-4 border-2 border-gray-300 rounded-lg bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200" />
+              <datalist id="model-suggestions">
+                <option v-for="(model, modelName) in downloadedModels" :key="modelName" :value="modelName">
+                  {{ model.name }} ({{ model.speed }}, {{ model.accuracy }})
+                </option>
+              </datalist>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="language" class="font-semibold text-gray-700 flex items-center gap-2">
+                <span>🌐</span>
+                <span>语言 (可选):</span>
+              </label>
+              <select id="language" v-model="whisperLanguage" :disabled="processing"
+                class="p-4 border-2 border-gray-300 rounded-lg bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200">
+                <option value="">自动检测</option>
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+              </select>
+            </div>
+          </div>
+          <button @click="transcribeAudio" :disabled="processing"
+            class="w-full px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
+            {{ transcribing ? '⏳ 转录中...' : '🚀 开始转录' }}
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Loading State -->
-    <div class="text-center p-8 text-gray-600" v-if="processing">
-      <p class="text-lg font-medium">处理中...</p>
+      <!-- Transcription Result -->
+      <div class="mb-8 glass rounded-2xl p-8 shadow-xl border border-white/20" v-if="transcriptionResult">
+        <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+          <span>📝</span>
+          <span>转录结果</span>
+        </h3>
+        <div class="flex gap-6 mb-6 pb-6 border-b-2 border-gray-200 flex-wrap">
+          <div class="px-4 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
+            <p class="text-sm font-medium text-gray-600">检测语言:</p>
+            <p class="text-lg font-bold text-blue-700">{{ transcriptionResult.language || '未知' }}</p>
+          </div>
+          <div class="px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+            <p class="text-sm font-medium text-gray-600">使用模型:</p>
+            <p class="text-lg font-bold text-purple-700">{{ transcriptionResult.model_name }}</p>
+          </div>
+        </div>
+        <div
+          class="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl mb-6 text-lg leading-relaxed whitespace-pre-wrap break-words text-gray-800 border-2 border-gray-200 shadow-inner">
+          <p class="m-0">{{ transcriptionResult.text }}</p>
+        </div>
+        <div class="mt-6" v-if="transcriptionResult.segments && transcriptionResult.segments.length > 0">
+          <h4 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span>📋</span>
+            <span>分段详情</span>
+          </h4>
+          <div
+            class="max-h-96 overflow-y-auto bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl border-2 border-gray-200">
+            <div v-for="(segment, index) in transcriptionResult.segments" :key="index"
+              class="mb-4 pb-4 border-b-2 border-gray-200 last:mb-0 last:pb-0 last:border-b-0">
+              <div class="text-sm text-gray-600 mb-2 font-semibold bg-indigo-50 px-3 py-1 rounded-lg inline-block">
+                {{ formatTime(segment.start) }} - {{ formatTime(segment.end) }}
+              </div>
+              <div class="text-gray-800 leading-relaxed mt-2">{{ segment.text }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-4 mt-6">
+          <button @click="copyTranscription"
+            class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
+            📋 复制文本
+          </button>
+          <button @click="downloadSRT" :disabled="downloadingSRT"
+            class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
+            {{ downloadingSRT ? '⏳ 下载中...' : '💾 下载SRT字幕' }}
+          </button>
+        </div>
+      </div>
+
+
+      <!-- Result Section -->
+      <div class="mb-8 glass rounded-2xl p-6 shadow-xl border border-white/20" v-if="result">
+        <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
+          <span>📊</span>
+          <span>处理结果</span>
+        </h3>
+        <div class="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl overflow-x-auto border-2 border-gray-200">
+          <pre class="m-0 text-sm text-gray-800 font-mono">{{ JSON.stringify(result, null, 2) }}</pre>
+        </div>
+      </div>
+
+      <!-- Error Section -->
+      <div class="mb-8" v-if="error">
+        <div class="glass rounded-2xl p-6 border-l-4 border-red-500 shadow-xl">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">⚠️</span>
+              <p class="font-semibold text-red-700 text-lg">{{ error }}</p>
+            </div>
+            <button @click="error = null"
+              class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg">
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div class="glass rounded-2xl p-12 text-center shadow-xl" v-if="processing && !transcribing">
+        <div
+          class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent mb-6">
+        </div>
+        <p class="text-xl font-semibold text-gray-700">处理中...</p>
+      </div>
     </div>
   </div>
 </template>
@@ -420,4 +410,5 @@ const downloadSRT = async () => {
     downloadingSRT.value = false
   }
 }
+
 </script>

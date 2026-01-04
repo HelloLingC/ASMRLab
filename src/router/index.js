@@ -22,6 +22,16 @@ const router = createRouter({
       name: 'audio',
       component: () => import('../views/AudioProcessView.vue'),
     },
+    {
+      path: '/player',
+      name: 'player',
+      component: () => import('../views/AudioPlayerView.vue'),
+    },
+    {
+      path: '/srt-translator',
+      name: 'srt-translator',
+      component: () => import('../views/SrtTranslatorView.vue'),
+    },
   ],
 })
 

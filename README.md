@@ -1,23 +1,8 @@
 # AudioLab - AI音频处理应用
 
-一个整合了Python后端和Vue前端的AI音频处理应用。
+AI ASMR音声处理应用，主要将日文音声转译至中文。使用faster-whisper，demucs。
 
-## 项目结构
-
-```
-AudioLab/
-├── backend/              # Python后端 (FastAPI)
-│   ├── main.py          # 主应用文件
-│   ├── requirements.txt # Python依赖
-│   └── uploads/         # 上传文件目录（自动创建）
-├── src/                 # Vue前端
-│   ├── components/      # Vue组件
-│   ├── views/           # 页面视图
-│   ├── services/        # API服务
-│   └── router/          # 路由配置
-├── package.json         # 前端依赖
-└── vite.config.js       # Vite配置（包含代理设置）
-```
+Python后端和Vue前端
 
 ## 快速开始
 

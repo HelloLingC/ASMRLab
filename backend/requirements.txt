@@ -7,4 +7,5 @@ faster-whisper
 torch>=2.0.0
 torchaudio>=2.0.0
 loguru
+openai>=1.0.0
 

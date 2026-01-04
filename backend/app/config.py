@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from loguru import logger
 
@@ -21,6 +22,10 @@ LOGS_DIR.mkdir(exist_ok=True)
 # App configuration
 APP_TITLE = "AudioLab API"
 APP_VERSION = "1.0.0"
+
+# OpenAI API configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
 # Logging configuration
 def setup_logging():

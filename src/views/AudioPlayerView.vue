@@ -1,194 +1,143 @@
 <template>
-  <div class="max-w-4xl mx-auto p-8">
-    <h1 class="text-center text-3xl font-bold text-gray-800 mb-8">音频播放器</h1>
-
-    <!-- Upload Section -->
-    <div class="mb-8">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Audio Upload -->
-        <div
-          class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 hover:border-primary hover:bg-primary-light transition-all duration-300 cursor-pointer"
-          @drop.prevent="handleAudioDrop"
-          @dragover.prevent
-        >
-          <input
-            ref="audioInput"
-            type="file"
-            accept="audio/*"
-            @change="handleAudioSelect"
-            class="hidden"
-          />
-          <div v-if="!selectedAudio" class="upload-placeholder">
-            <p class="mb-4 text-gray-600">拖拽音频文件到此处或点击选择</p>
-            <button
-              @click="$refs.audioInput.click()"
-              class="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover transition-colors duration-300 font-medium"
-            >
-              选择音频文件
-            </button>
-          </div>
-          <div v-else class="flex flex-col items-center gap-2">
-            <p class="text-gray-700">
-              已选择音频: <span class="font-medium">{{ selectedAudio.name }}</span>
-            </p>
-            <p class="text-gray-600">大小: {{ formatFileSize(selectedAudio.size) }}</p>
-            <button
-              @click="clearAudio"
-              class="mt-2 px-6 py-3 bg-destructive text-white rounded hover:bg-destructive-hover transition-colors duration-300 font-medium"
-            >
-              清除
-            </button>
-          </div>
-        </div>
-
-        <!-- SRT Upload -->
-        <div
-          class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 hover:border-primary hover:bg-primary-light transition-all duration-300 cursor-pointer"
-          @drop.prevent="handleSrtDrop"
-          @dragover.prevent
-        >
-          <input
-            ref="srtInput"
-            type="file"
-            accept=".srt"
-            @change="handleSrtSelect"
-            class="hidden"
-          />
-          <div v-if="!selectedSrt" class="upload-placeholder">
-            <p class="mb-4 text-gray-600">拖拽SRT字幕文件到此处或点击选择</p>
-            <p class="text-sm text-gray-500 mb-4">可选，如果不上传将自动生成</p>
-            <button
-              @click="$refs.srtInput.click()"
-              class="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover transition-colors duration-300 font-medium"
-            >
-              选择SRT文件
-            </button>
-          </div>
-          <div v-else class="flex flex-col items-center gap-2">
-            <p class="text-gray-700">
-              已选择字幕: <span class="font-medium">{{ selectedSrt.name }}</span>
-            </p>
-            <p class="text-gray-600">大小: {{ formatFileSize(selectedSrt.size) }}</p>
-            <button
-              @click="clearSrt"
-              class="mt-2 px-6 py-3 bg-destructive text-white rounded hover:bg-destructive-hover transition-colors duration-300 font-medium"
-            >
-              清除
-            </button>
-          </div>
-        </div>
+  <main class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold text-white mb-4 drop-shadow-lg">音频播放器</h1>
+        <p class="text-xl text-white/90 font-medium">播放音频并同步显示字幕</p>
       </div>
-    </div>
 
-    <!-- Transcription Section (if no SRT uploaded) -->
-    <div class="mb-8 p-6 bg-gray-50 rounded-lg" v-if="selectedAudio && !selectedSrt">
-      <h3 class="text-xl font-semibold text-gray-800 mb-4">生成字幕</h3>
-      <div class="flex gap-6 mb-4 flex-wrap">
-        <div class="flex flex-col gap-2 flex-1 min-w-[200px]">
-          <label for="model-name" class="font-medium text-gray-700">模型名称:</label>
-          <input
-            id="model-name"
-            v-model="whisperModelName"
-            :disabled="processing"
-            list="model-suggestions"
-            placeholder="输入模型名称，如: base, openai/whisper-large-v3"
-            class="p-2 border border-gray-300 rounded bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-          <datalist id="model-suggestions">
-            <option
-              v-for="(model, modelName) in downloadedModels"
-              :key="modelName"
-              :value="modelName"
-            >
-              {{ model.name }} ({{ model.speed }}, {{ model.accuracy }})
-            </option>
-          </datalist>
-        </div>
-        <div class="flex flex-col gap-2 flex-1 min-w-[200px]">
-          <label for="language" class="font-medium text-gray-700">语言 (可选):</label>
-          <select
-            id="language"
-            v-model="whisperLanguage"
-            :disabled="processing"
-            class="p-2 border border-gray-300 rounded bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="">自动检测</option>
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-          </select>
-        </div>
-      </div>
-      <button
-        @click="generateCaptions"
-        :disabled="processing"
-        class="px-8 py-3 bg-transcription text-white rounded w-full max-w-xs hover:bg-transcription-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-300 font-medium text-base"
-      >
-        {{ processing ? '生成中...' : '生成字幕' }}
-      </button>
-    </div>
-
-    <!-- Player Section -->
-    <div class="mb-8" v-if="audioUrl">
-      <h3 class="text-xl font-semibold text-gray-800 mb-4">播放器</h3>
-      <div class="bg-white p-6 rounded-lg shadow">
-        <audio
-          ref="audioPlayer"
-          :src="audioUrl"
-          controls
-          @timeupdate="updateCaption"
-          @loadedmetadata="onAudioLoaded"
-          class="w-full mb-4"
-        ></audio>
-
-        <!-- Current Caption -->
-        <div
-          class="bg-gray-100 p-4 rounded text-center text-lg text-gray-800 min-h-[60px] flex items-center justify-center"
-        >
-          <p v-if="currentCaption">{{ currentCaption }}</p>
-          <p v-else class="text-gray-500">字幕将在这里显示</p>
-        </div>
-
-        <!-- Caption List -->
-        <div class="mt-6" v-if="captions.length > 0">
-          <h4 class="text-lg font-semibold text-gray-800 mb-4">字幕列表</h4>
-          <div class="max-h-96 overflow-y-auto bg-gray-50 p-4 rounded">
-            <div
-              v-for="(caption, index) in captions"
-              :key="index"
-              class="mb-4 pb-4 border-b border-gray-200 last:mb-0 last:pb-0 last:border-b-0"
-              :class="{ 'bg-yellow-100': isCurrentCaption(index) }"
-            >
-              <div class="text-sm text-gray-600 mb-2 font-medium">
-                {{ formatTime(caption.start) }} - {{ formatTime(caption.end) }}
+      <!-- Upload Section -->
+      <div class="mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Audio Upload -->
+          <div
+            class="glass rounded-2xl p-8 text-center shadow-xl border-2 border-dashed border-white/30 hover:border-indigo-400 transition-all duration-300 cursor-pointer card-hover"
+            @drop.prevent="handleAudioDrop" @dragover.prevent>
+            <input ref="audioInput" type="file" accept="audio/*" @change="handleAudioSelect" class="hidden" />
+            <div v-if="!selectedAudio" class="upload-placeholder">
+              <div class="text-5xl mb-4">🎵</div>
+              <p class="mb-4 text-lg font-semibold text-gray-700">拖拽音频文件到此处或点击选择</p>
+              <button @click="$refs.audioInput.click()"
+                class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
+                选择音频文件
+              </button>
+            </div>
+            <div v-else class="flex flex-col items-center gap-3">
+              <div class="text-4xl">✅</div>
+              <div class="text-center">
+                <p class="text-lg font-semibold text-gray-800 mb-1">
+                  已选择音频: <span class="text-indigo-600">{{ selectedAudio.name }}</span>
+                </p>
+                <p class="text-gray-600 text-sm font-medium">大小: {{ formatFileSize(selectedAudio.size) }}</p>
               </div>
-              <div class="text-gray-800 leading-relaxed">{{ caption.text }}</div>
+              <button @click="clearAudio"
+                class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
+                清除
+              </button>
+            </div>
+          </div>
+
+          <!-- SRT Upload -->
+          <div
+            class="glass rounded-2xl p-8 text-center shadow-xl border-2 border-dashed border-white/30 hover:border-indigo-400 transition-all duration-300 cursor-pointer card-hover"
+            @drop.prevent="handleSrtDrop" @dragover.prevent>
+            <input ref="srtInput" type="file" accept=".srt" @change="handleSrtSelect" class="hidden" />
+            <div v-if="!selectedSrt" class="upload-placeholder">
+              <div class="text-5xl mb-4">📄</div>
+              <p class="mb-4 text-lg font-semibold text-gray-700">拖拽SRT字幕文件到此处或点击选择</p>
+              <button @click="$refs.srtInput.click()"
+                class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
+                选择SRT文件
+              </button>
+            </div>
+            <div v-else class="flex flex-col items-center gap-3">
+              <div class="text-4xl">✅</div>
+              <div class="text-center">
+                <p class="text-lg font-semibold text-gray-800 mb-1">
+                  已选择字幕: <span class="text-indigo-600">{{ selectedSrt.name }}</span>
+                </p>
+                <p class="text-gray-600 text-sm font-medium">大小: {{ formatFileSize(selectedSrt.size) }}</p>
+              </div>
+              <button @click="clearSrt"
+                class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl text-sm">
+                清除
+              </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Error Section -->
-    <div class="mb-8" v-if="error">
-      <div
-        class="p-4 bg-red-50 border border-red-200 rounded text-red-700 flex justify-between items-center"
-      >
-        <p class="m-0 font-medium">错误: {{ error }}</p>
-        <button
-          @click="error = null"
-          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-300 text-sm font-medium"
-        >
-          关闭
-        </button>
+      <!-- Player Section -->
+      <div class="mb-8" v-if="audioUrl">
+        <div class="glass rounded-2xl p-8 shadow-xl border border-white/20">
+          <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+            <span>🎧</span>
+            <span>播放器</span>
+          </h3>
+
+          <!-- Audio Player -->
+          <div class="mb-6">
+            <audio ref="audioPlayer" :src="audioUrl" controls @timeupdate="updateCaption"
+              @loadedmetadata="onAudioLoaded" class="w-full rounded-lg shadow-lg"></audio>
+          </div>
+
+          <!-- Current Caption Display -->
+          <div class="mb-6">
+            <div
+              class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8 rounded-xl text-center min-h-[120px] flex items-center justify-center border-2 border-indigo-200 shadow-inner">
+              <p v-if="currentCaption" class="text-2xl font-semibold text-gray-800 leading-relaxed">
+                {{ currentCaption }}
+              </p>
+              <p v-else class="text-xl text-gray-500 font-medium">字幕将在这里显示</p>
+            </div>
+          </div>
+
+          <!-- Caption List -->
+          <div class="mt-6" v-if="captions.length > 0">
+            <h4 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>📋</span>
+              <span>字幕列表</span>
+            </h4>
+            <div ref="captionListContainer"
+              class="max-h-96 overflow-y-auto bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl border-2 border-gray-200">
+              <div v-for="(caption, index) in captions" :key="index" :ref="el => setCaptionRef(el, index)"
+                class="mb-4 pb-4 border-b-2 border-gray-200 last:mb-0 last:pb-0 last:border-b-0 transition-all duration-200 rounded-lg p-3"
+                :class="{ 'bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-300 shadow-md': isCurrentCaption(index) }">
+                <div class="text-sm text-gray-600 mb-2 font-semibold bg-indigo-50 px-3 py-1 rounded-lg inline-block">
+                  {{ formatTime(caption.start) }} - {{ formatTime(caption.end) }}
+                </div>
+                <div class="text-gray-800 leading-relaxed mt-2 text-lg"
+                  :class="{ 'font-semibold': isCurrentCaption(index) }">
+                  {{ caption.text }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error Section -->
+      <div class="mb-8" v-if="error">
+        <div class="glass rounded-2xl p-6 border-l-4 border-red-500 shadow-xl">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">⚠️</span>
+              <p class="font-semibold text-red-700 text-lg">{{ error }}</p>
+            </div>
+            <button @click="error = null"
+              class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg">
+              关闭
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { audioAPI } from '../services/api'
 
 const audioInput = ref(null)
@@ -196,59 +145,15 @@ const srtInput = ref(null)
 const audioPlayer = ref(null)
 const selectedAudio = ref(null)
 const selectedSrt = ref(null)
-const processing = ref(false)
 const error = ref(null)
-const whisperModelName = ref('base')
-const whisperLanguage = ref('')
-const availableModels = ref({})
-const modelStatuses = ref({})
 const audioUrl = ref(null)
 const captions = ref([])
 const currentCaption = ref('')
 const currentTime = ref(0)
-
-// 计算已下载的模型
-const downloadedModels = computed(() => {
-  return Object.keys(availableModels.value).reduce((acc, modelName) => {
-    const status = modelStatuses.value[modelName]?.status
-    if (status === 'loaded' || status === 'downloaded') {
-      acc[modelName] = availableModels.value[modelName]
-    }
-    return acc
-  }, {})
-})
-
-// 获取可用模型信息
-const fetchModels = async () => {
-  try {
-    const response = await audioAPI.getModels()
-    availableModels.value = response.models
-
-    // 获取所有模型状态
-    const statuses = {}
-    for (const modelName of Object.keys(availableModels.value)) {
-      try {
-        const statusResponse = await audioAPI.getModelStatus(modelName)
-        statuses[modelName] = statusResponse
-      } catch (err) {
-        statuses[modelName] = { status: 'error', message: err.message }
-      }
-    }
-    modelStatuses.value = statuses
-  } catch (err) {
-    console.error('获取模型信息失败:', err)
-  }
-}
-
-// 检查模型是否可用
-const isModelAvailable = (modelName) => {
-  const status = modelStatuses.value[modelName]
-  return status && (status.status === 'loaded' || status.status === 'downloaded')
-}
-
-onMounted(() => {
-  fetchModels()
-})
+const captionListContainer = ref(null)
+const captionRefs = ref([])
+const currentCaptionIndex = ref(-1)
+const lastValidCaption = ref('') // 存储上一个有效的字幕内容
 
 const handleAudioSelect = (event) => {
   const file = event.target.files[0]
@@ -257,6 +162,8 @@ const handleAudioSelect = (event) => {
     audioUrl.value = URL.createObjectURL(file)
     captions.value = []
     currentCaption.value = ''
+    currentCaptionIndex.value = -1
+    lastValidCaption.value = ''
   }
 }
 
@@ -267,6 +174,8 @@ const handleAudioDrop = (event) => {
     audioUrl.value = URL.createObjectURL(file)
     captions.value = []
     currentCaption.value = ''
+    currentCaptionIndex.value = -1
+    lastValidCaption.value = ''
   } else {
     error.value = '请选择音频文件'
   }
@@ -295,6 +204,8 @@ const clearAudio = () => {
   audioUrl.value = null
   captions.value = []
   currentCaption.value = ''
+  currentCaptionIndex.value = -1
+  lastValidCaption.value = ''
   if (audioInput.value) {
     audioInput.value.value = ''
   }
@@ -304,6 +215,8 @@ const clearSrt = () => {
   selectedSrt.value = null
   captions.value = []
   currentCaption.value = ''
+  currentCaptionIndex.value = -1
+  lastValidCaption.value = ''
   if (srtInput.value) {
     srtInput.value.value = ''
   }
@@ -317,52 +230,16 @@ const formatFileSize = (bytes) => {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
-const generateCaptions = async () => {
-  if (!selectedAudio.value) {
-    error.value = '请先选择音频文件'
-    return
-  }
-
-  // 检查模型是否可用
-  if (!isModelAvailable(whisperModelName.value)) {
-    const status = modelStatuses.value[whisperModelName.value]
-    if (status?.status === 'not_downloaded') {
-      error.value = `模型 "${whisperModelName.value}" 未下载。请先在模型管理页面下载该模型。`
-    } else if (status?.status === 'downloading') {
-      error.value = `模型 "${whisperModelName.value}" 正在下载中，请稍后再试。`
-    } else {
-      error.value = `模型 "${whisperModelName.value}" 不可用: ${status?.message || '未知错误'}`
-    }
-    return
-  }
-
-  processing.value = true
-  error.value = null
-
-  try {
-    const language = whisperLanguage.value || null
-    const response = await audioAPI.transcribeAudio(
-      selectedAudio.value,
-      whisperModelName.value,
-      language,
-    )
-    captions.value = response.segments.map((segment) => ({
-      start: segment.start,
-      end: segment.end,
-      text: segment.text.trim(),
-    }))
-  } catch (err) {
-    error.value = err.message || '生成字幕失败'
-  } finally {
-    processing.value = false
-  }
-}
-
 const parseSrtFile = (file) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     const srtContent = e.target.result
     captions.value = parseSrt(srtContent)
+    // Reset caption refs and index when new captions are loaded
+    captionRefs.value = []
+    currentCaptionIndex.value = -1
+    lastValidCaption.value = ''
+    currentCaption.value = ''
   }
   reader.readAsText(file)
 }
@@ -375,24 +252,26 @@ const parseSrt = (srtContent) => {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
 
-    if (!line) {
+    if (!line) continue
+
+    if (line.includes('-->')) {
+      // Time line - start new caption
       if (currentCaption) {
         captions.push(currentCaption)
-        currentCaption = null
       }
-      continue
-    }
-
-    if (!currentCaption) {
-      // Skip sequence number
-      if (!isNaN(line)) continue
-      currentCaption = { text: '' }
-    } else if (line.includes('-->')) {
-      // Time line
       const [start, end] = line.split(' --> ')
-      currentCaption.start = timeToSeconds(start)
-      currentCaption.end = timeToSeconds(end)
-    } else {
+      currentCaption = {
+        start: timeToSeconds(start),
+        end: timeToSeconds(end),
+        text: '',
+      }
+      // Set to 0 if invalid
+      if (isNaN(currentCaption.start)) currentCaption.start = 0
+      if (isNaN(currentCaption.end)) currentCaption.end = 0
+    } else if (currentCaption && !isNaN(line)) {
+      // Skip sequence number
+      continue
+    } else if (currentCaption) {
       // Text line
       currentCaption.text += (currentCaption.text ? ' ' : '') + line
     }
@@ -406,7 +285,9 @@ const parseSrt = (srtContent) => {
 }
 
 const timeToSeconds = (timeStr) => {
-  const [time, ms] = timeStr.split(',')
+  // Handle both comma and dot separators for milliseconds
+  const separator = timeStr.includes(',') ? ',' : '.'
+  const [time, ms] = timeStr.split(separator)
   const [hours, minutes, seconds] = time.split(':').map(Number)
   return hours * 3600 + minutes * 60 + seconds + (ms ? parseInt(ms) / 1000 : 0)
 }
@@ -415,7 +296,51 @@ const onAudioLoaded = () => {
   // Audio loaded
 }
 
-const updateCaption = () => {
+const setCaptionRef = (el, index) => {
+  if (el) {
+    captionRefs.value[index] = el
+  }
+}
+
+const scrollToCurrentCaption = async () => {
+  await nextTick()
+  const newIndex = captions.value.findIndex(
+    (caption) => currentTime.value >= caption.start && currentTime.value <= caption.end,
+  )
+
+  // Only scroll if the caption index has changed
+  if (newIndex !== currentCaptionIndex.value && newIndex !== -1) {
+    currentCaptionIndex.value = newIndex
+
+    if (captionRefs.value[newIndex] && captionListContainer.value) {
+      const captionElement = captionRefs.value[newIndex]
+      const container = captionListContainer.value
+
+      // Calculate the position relative to the container
+      const containerRect = container.getBoundingClientRect()
+      const elementRect = captionElement.getBoundingClientRect()
+
+      // Calculate the scroll position needed to center the element
+      const elementTop = elementRect.top - containerRect.top + container.scrollTop
+      const elementHeight = elementRect.height
+      const containerHeight = container.clientHeight
+
+      // Calculate target scroll position to center the element
+      const targetScrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2)
+
+      // Smooth scroll within the container only
+      container.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+      })
+    }
+  } else if (newIndex === -1) {
+    // Reset index when no caption is active
+    currentCaptionIndex.value = -1
+  }
+}
+
+const updateCaption = async () => {
   if (!audioPlayer.value) return
   currentTime.value = audioPlayer.value.currentTime
 
@@ -423,7 +348,22 @@ const updateCaption = () => {
     (caption) => currentTime.value >= caption.start && currentTime.value <= caption.end,
   )
 
-  currentCaption.value = current ? current.text : ''
+  // 如果找到匹配的字幕，更新当前字幕和上一个有效字幕
+  if (current) {
+    currentCaption.value = current.text
+    lastValidCaption.value = current.text
+  } else {
+    // 如果找不到匹配的字幕（空白期间），保持上一个有效字幕
+    // 只有在已经有上一个有效字幕的情况下才保持，否则清空
+    if (lastValidCaption.value) {
+      currentCaption.value = lastValidCaption.value
+    } else {
+      currentCaption.value = ''
+    }
+  }
+
+  // Auto-scroll to current caption (only when caption changes)
+  scrollToCurrentCaption()
 }
 
 const isCurrentCaption = (index) => {
@@ -432,6 +372,9 @@ const isCurrentCaption = (index) => {
 }
 
 const formatTime = (seconds) => {
+  if (isNaN(seconds) || seconds < 0) {
+    return '00:00.000'
+  }
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   const secs = Math.floor(seconds % 60)

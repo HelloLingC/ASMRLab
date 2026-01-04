@@ -130,15 +130,15 @@ const getStatusText = (status) => {
 const getStatusColor = (status) => {
   switch (status) {
     case 'loaded':
-      return 'text-green-600'
+      return 'bg-green-100 text-green-700 border-green-300'
     case 'downloading':
-      return 'text-blue-600'
+      return 'bg-blue-100 text-blue-700 border-blue-300'
     case 'not_downloaded':
-      return 'text-gray-600'
+      return 'bg-gray-100 text-gray-700 border-gray-300'
     case 'error':
-      return 'text-red-600'
+      return 'bg-red-100 text-red-700 border-red-300'
     default:
-      return 'text-gray-600'
+      return 'bg-gray-100 text-gray-700 border-gray-300'
   }
 }
 
@@ -160,162 +160,172 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="min-h-screen p-8 bg-gray-50">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-gray-800 mb-4">Whisper 模型管理器</h1>
-        <p class="text-lg text-gray-600">管理您的 AI 语音转录模型</p>
+  <main class="min-h-screen w-full py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header Section -->
+      <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold text-white mb-4 drop-shadow-lg">
+          Whisper 模型管理器
+        </h1>
+        <p class="text-xl text-white/90 font-medium">
+          管理您的 AI 语音转录模型
+        </p>
       </div>
 
-      <!-- 错误提示 -->
-      <div v-if="error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-        <p class="font-medium">错误: {{ error }}</p>
+      <!-- Error Alert -->
+      <div v-if="error" class="mb-6 glass rounded-2xl p-4 border-l-4 border-red-500 shadow-lg">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">⚠️</span>
+          <p class="font-semibold text-red-700">{{ error }}</p>
+        </div>
       </div>
 
-      <!-- 加载状态 -->
-      <div v-if="loading" class="text-center p-8">
-        <p class="text-lg text-gray-600">加载模型列表中...</p>
-      </div>
-
-      <!-- 模型列表 -->
-      <div
-        v-else-if="Object.keys(models).length > 0"
-        class="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-      >
+      <!-- Loading State -->
+      <div v-if="loading" class="glass rounded-2xl p-12 text-center shadow-xl">
         <div
-          v-for="(model, modelSize) in models"
-          :key="modelSize"
-          class="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow duration-300"
-        >
-          <div class="flex items-start justify-between mb-4">
-            <div>
-              <h3 class="text-xl font-semibold text-gray-800">{{ model.name }}</h3>
-              <p class="text-sm text-gray-600 mt-1">{{ model.description }}</p>
+          class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4">
+        </div>
+        <p class="text-lg font-medium text-gray-700">加载模型列表中...</p>
+      </div>
+
+      <!-- Model Cards Grid -->
+      <div v-else-if="Object.keys(models).length > 0" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-12">
+        <div v-for="(model, modelSize) in models" :key="modelSize"
+          class="glass rounded-2xl p-6 shadow-xl card-hover border border-white/20">
+          <!-- Card Header -->
+          <div class="flex items-start justify-between mb-6">
+            <div class="flex-1">
+              <h3 class="text-2xl font-bold text-gray-800 mb-2">{{ model.name }}</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">{{ model.description }}</p>
             </div>
-            <div class="text-2xl">
-              <span :class="getStatusColor(modelStatuses[modelSize]?.status)">
-                {{ getStatusIcon(modelStatuses[modelSize]?.status) }}
-              </span>
+            <div class="ml-4 text-3xl">
+              <span>{{ getStatusIcon(modelStatuses[modelSize]?.status) }}</span>
             </div>
           </div>
 
-          <div class="space-y-2 mb-4">
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">大小:</span>
-              <span class="font-medium">{{ model.size_mb }} MB</span>
+          <!-- Model Info -->
+          <div class="space-y-3 mb-6">
+            <div class="flex justify-between items-center p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
+              <span class="text-sm font-medium text-gray-600">大小:</span>
+              <span class="font-bold text-indigo-700">{{ model.size_mb }} MB</span>
             </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">速度:</span>
-              <span class="font-medium">{{ model.speed }}</span>
+            <div class="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg">
+              <span class="text-sm font-medium text-gray-600">速度:</span>
+              <span class="font-bold text-blue-700">{{ model.speed }}</span>
             </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">精度:</span>
-              <span class="font-medium">{{ model.accuracy }}</span>
+            <div class="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
+              <span class="text-sm font-medium text-gray-600">精度:</span>
+              <span class="font-bold text-green-700">{{ model.accuracy }}</span>
             </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">状态:</span>
-              <span :class="getStatusColor(modelStatuses[modelSize]?.status)" class="font-medium">
+            <div class="flex justify-between items-center p-3 rounded-lg border-2"
+              :class="getStatusColor(modelStatuses[modelSize]?.status)">
+              <span class="text-sm font-medium">状态:</span>
+              <span class="font-bold">
                 {{ getStatusText(modelStatuses[modelSize]?.status) }}
               </span>
             </div>
           </div>
 
-          <!-- 状态消息 -->
-          <div
-            v-if="modelStatuses[modelSize]?.message"
-            class="mb-4 p-2 bg-gray-50 rounded text-sm text-gray-700"
-          >
+          <!-- Status Message -->
+          <div v-if="modelStatuses[modelSize]?.message"
+            class="mb-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-700 border border-gray-200">
             {{ modelStatuses[modelSize].message }}
           </div>
 
-          <!-- 下载进度 -->
+          <!-- Download Progress -->
           <div v-if="modelStatuses[modelSize]?.status === 'downloading'" class="mb-4">
-            <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
               <div
-                class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                :style="{ width: `${modelStatuses[modelSize]?.progress || 0}%` }"
-              ></div>
+                class="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-500 shadow-lg"
+                :style="{ width: `${modelStatuses[modelSize]?.progress || 0}%` }"></div>
             </div>
-            <p class="text-xs text-gray-600 mt-1 text-center">
+            <p class="text-xs text-gray-600 mt-2 text-center font-medium">
               {{ modelStatuses[modelSize]?.progress || 0 }}% 完成
             </p>
           </div>
 
-          <!-- 操作按钮 -->
+          <!-- Action Buttons -->
           <div class="flex gap-2">
-            <button
-              v-if="modelStatuses[modelSize]?.status === 'not_downloaded'"
-              @click="downloadModel(modelSize)"
-              class="flex-1 px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors duration-300 text-sm font-medium"
-            >
+            <button v-if="modelStatuses[modelSize]?.status === 'not_downloaded'" @click="downloadModel(modelSize)"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
               下载模型
             </button>
-            <button
-              v-else-if="modelStatuses[modelSize]?.status === 'downloading'"
-              disabled
-              class="flex-1 px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed text-sm font-medium"
-            >
+            <button v-else-if="modelStatuses[modelSize]?.status === 'downloading'" disabled
+              class="flex-1 px-4 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed text-sm font-semibold">
               下载中...
             </button>
-            <div
-              v-else-if="modelStatuses[modelSize]?.status === 'loaded'"
-              class="flex gap-2 flex-1"
-            >
+            <div v-else-if="modelStatuses[modelSize]?.status === 'loaded'" class="flex gap-2 flex-1">
               <button
-                class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-300 text-sm font-medium"
-              >
+                class="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm font-semibold shadow-lg">
                 ✓ 已就绪
               </button>
-              <button
-                @click="deleteModel(modelSize)"
-                class="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors duration-300 text-sm font-medium"
-                title="删除模型"
-              >
+              <button @click="deleteModel(modelSize)"
+                class="px-4 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 text-sm font-semibold shadow-lg hover:shadow-xl"
+                title="删除模型">
                 🗑️
               </button>
             </div>
-            <button
-              v-else-if="modelStatuses[modelSize]?.status === 'error'"
-              @click="downloadModel(modelSize)"
-              class="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-300 text-sm font-medium"
-            >
+            <button v-else-if="modelStatuses[modelSize]?.status === 'error'" @click="downloadModel(modelSize)"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 text-sm font-semibold shadow-lg hover:shadow-xl">
               重试下载
             </button>
           </div>
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <div v-else class="text-center p-12 bg-white rounded-lg shadow-md">
-        <p class="text-lg text-gray-600">无法加载模型列表</p>
-        <button
-          @click="fetchModels"
-          class="mt-4 px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover transition-colors duration-300 font-medium"
-        >
+      <!-- Empty State -->
+      <div v-else class="glass rounded-2xl p-12 text-center shadow-xl">
+        <div class="text-6xl mb-4">📦</div>
+        <p class="text-xl font-semibold text-gray-700 mb-6">无法加载模型列表</p>
+        <button @click="fetchModels"
+          class="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
           重试
         </button>
       </div>
 
-      <!-- 使用说明 -->
-      <div class="mt-12 bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">使用说明</h2>
-        <div class="space-y-3 text-gray-700">
-          <p>
-            • <strong>模型选择:</strong> 根据您的需求选择合适的模型。Tiny
-            模型最小最快，但精度较低；Large 模型精度最高，但需要更多存储空间和处理时间。
-          </p>
-          <p>
-            •
-            <strong>首次使用:</strong>
-            使用转录功能前，请先下载所需的模型。下载完成后，模型会自动加载到内存中。
-          </p>
-          <p>
-            • <strong>存储空间:</strong> 确保有足够的磁盘空间存储模型文件。模型文件保存在服务器的
-            models 目录中。
-          </p>
-          <p>
-            • <strong>性能考虑:</strong> 较大的模型需要更多 RAM 和处理时间，但提供更好的转录精度。
-          </p>
+      <!-- Instructions Section -->
+      <div class="glass rounded-2xl p-8 shadow-xl border border-white/20">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+          <span>📚</span>
+          <span>使用说明</span>
+        </h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+            <h3 class="font-bold text-indigo-900 mb-2 flex items-center gap-2">
+              <span>🎯</span>
+              <span>模型选择</span>
+            </h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              根据您的需求选择合适的模型。Tiny 模型最小最快，但精度较低；Large 模型精度最高，但需要更多存储空间和处理时间。
+            </p>
+          </div>
+          <div class="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100">
+            <h3 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
+              <span>🚀</span>
+              <span>首次使用</span>
+            </h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              使用转录功能前，请先下载所需的模型。下载完成后，模型会自动加载到内存中。
+            </p>
+          </div>
+          <div class="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
+            <h3 class="font-bold text-green-900 mb-2 flex items-center gap-2">
+              <span>💾</span>
+              <span>存储空间</span>
+            </h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              确保有足够的磁盘空间存储模型文件。模型文件保存在服务器的 models 目录中。
+            </p>
+          </div>
+          <div class="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+            <h3 class="font-bold text-orange-900 mb-2 flex items-center gap-2">
+              <span>⚡</span>
+              <span>性能考虑</span>
+            </h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              较大的模型需要更多 RAM 和处理时间，但提供更好的转录精度。
+            </p>
+          </div>
         </div>
       </div>
     </div>
