@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydub
+numpy
+faster-whisper
+torch>=2.0.0
+torchaudio>=2.0.0
+loguru
+

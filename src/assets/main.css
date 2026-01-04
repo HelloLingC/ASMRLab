@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+@import './base.css';
+
+@theme {
+  --color-primary: #42b983;
+  --color-primary-hover: #35a372;
+  --color-primary-light: #f0f8f5;
+  --color-transcription: #007bff;
+  --color-transcription-hover: #0056b3;
+  --color-transcription-light: #f0f8ff;
+  --color-transcription-border: #b3d9ff;
+  --color-destructive: #ff6b6b;
+  --color-destructive-hover: #ee5a5a;
+  --color-success: #28a745;
+  --color-success-hover: #218838;
+}
+
+#app {
+  min-height: 100vh;
+  font-weight: normal;
+}

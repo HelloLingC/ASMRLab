@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+models/
+ENV/
+uploads/
+*.wav
+*.mp3
+*.flac
+*.ogg
+
