@@ -118,6 +118,35 @@ export const audioAPI = {
 
     return response
   },
+
+  // 配置相关API
+  async getConfig() {
+    return await api.get('/config')
+  },
+
+  async updateConfig(configData) {
+    return await api.post('/config', configData)
+  },
+
+  async validateConfig() {
+    return await api.get('/config/validate')
+  },
+
+  // 语音分离相关API
+  async separateVoice(file, model = 'htdemucs', stems = 'vocals,drums,bass,other') {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('model', model)
+    formData.append('stems', stems)
+
+    // 使用axios直接获取blob（可能是单个文件或ZIP）
+    const response = await axios.post('/api/separate-voice', formData, {
+      responseType: 'blob',
+      timeout: 300000, // 5分钟超时，分离可能需要较长时间
+    })
+
+    return response
+  },
 }
 
 export default api

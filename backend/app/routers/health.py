@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from loguru import logger
+from ..utils.system_utils import check_cuda
 
 router = APIRouter()
 
@@ -7,4 +8,9 @@ router = APIRouter()
 async def health_check():
     """健康检查端点"""
     logger.debug("健康检查请求")
-    return {"status": "healthy", "service": "AudioLab API"}
+    cuda_info = check_cuda()
+    return {
+        "status": "healthy",
+        "service": "AudioLab API",
+        "cuda": cuda_info
+    }

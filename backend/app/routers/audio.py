@@ -1,5 +1,6 @@
 import os
 import tempfile
+import zipfile
 from pathlib import Path
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 from fastapi.responses import JSONResponse, FileResponse
@@ -190,19 +191,29 @@ async def translate_srt(
         if not segments:
             raise HTTPException(status_code=400, detail="SRT文件为空或格式不正确")
         
-        # 检查OpenAI API密钥
-        from ..config import OPENAI_API_KEY, OPENAI_MODEL
-        if not OPENAI_API_KEY:
+        # 检查OpenAI API密钥 - 优先使用配置文件
+        from ..routers.config import load_config
+        config = load_config()
+        api_key = config.get("openai_api_key") or os.getenv("OPENAI_API_KEY", "")
+        model = config.get("openai_model") or os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+        base_url = config.get("openai_base_url") or None
+        temperature = config.get("openai_temperature", 0.3)
+        max_tokens = config.get("openai_max_tokens", 500)
+        
+        if not api_key:
             logger.error("OpenAI API密钥未配置")
             raise HTTPException(
                 status_code=500,
-                detail="OpenAI API密钥未配置，请设置环境变量 OPENAI_API_KEY"
+                detail="OpenAI API密钥未配置，请在配置页面设置 API 密钥"
             )
         
         # 使用OpenAI翻译
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=OPENAI_API_KEY)
+            client_kwargs = {"api_key": api_key}
+            if base_url:
+                client_kwargs["base_url"] = base_url
+            client = OpenAI(**client_kwargs)
             
             # 翻译所有字幕段
             translated_segments = []
@@ -220,13 +231,13 @@ async def translate_srt(
                 
                 try:
                     response = client.chat.completions.create(
-                        model=OPENAI_MODEL,
+                        model=model,
                         messages=[
                             {"role": "system", "content": "You are a professional translator. Translate subtitle text accurately while preserving the meaning and style."},
                             {"role": "user", "content": prompt}
                         ],
-                        temperature=0.3,
-                        max_tokens=500
+                        temperature=temperature,
+                        max_tokens=max_tokens
                     )
                     
                     translated_text = response.choices[0].message.content.strip()
@@ -279,3 +290,234 @@ async def translate_srt(
     except Exception as e:
         logger.error(f"翻译SRT失败: {file.filename}, 错误: {str(e)}")
         raise HTTPException(status_code=500, detail=f"翻译失败: {str(e)}")
+
+
+@router.post("/api/separate-voice")
+async def separate_voice(
+    file: UploadFile = File(...),
+    model: str = Form("htdemucs"),
+    stems: str = Form("vocals,drums,bass,other")
+):
+    """使用Demucs分离音频中的声音和伴奏"""
+    logger.info(f"开始分离音频: {file.filename}, 模型: {model}, 分离轨道: {stems}")
+    try:
+        # 检查文件类型
+        if not file.content_type or not file.content_type.startswith("audio/"):
+            logger.warning(f"文件类型不正确: {file.content_type}")
+            raise HTTPException(status_code=400, detail="只支持音频文件")
+
+        # 读取文件内容
+        content = await file.read()
+        logger.debug(f"读取音频文件: {file.filename}, 大小: {len(content)} bytes")
+
+        # 创建临时文件保存音频
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp_file:
+            tmp_file.write(content)
+            tmp_file_path = tmp_file.name
+
+        try:
+            # 导入Demucs
+            try:
+                from demucs.pretrained import get_model
+                from demucs.apply import apply_model
+                import torch
+                import torchaudio
+            except ImportError as e:
+                logger.error(f"Demucs库未正确安装: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Demucs库未正确安装，请运行: pip install demucs"
+                )
+
+            # 创建输出目录
+            output_dir = tempfile.mkdtemp()
+            logger.info(f"创建输出目录: {output_dir}")
+
+            # 检测设备
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info(f"使用设备: {device}")
+
+            # 加载模型
+            logger.info(f"加载Demucs模型: {model}")
+            try:
+                demucs_model = get_model(model)
+                demucs_model.to(device)
+                demucs_model.eval()
+            except Exception as e:
+                logger.error(f"加载模型失败: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"加载模型失败: {str(e)}。请确保模型已下载。"
+                )
+
+            # 加载音频文件
+            logger.info(f"加载音频文件: {tmp_file_path}")
+            try:
+                wav, sr = torchaudio.load(tmp_file_path)
+                # 转换为单声道（如果需要）
+                if wav.shape[0] > 1:
+                    wav = torch.mean(wav, dim=0, keepdim=True)
+                # 转换为模型期望的格式
+                wav = wav.unsqueeze(0)  # 添加batch维度
+            except Exception as e:
+                logger.error(f"加载音频文件失败: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"加载音频文件失败: {str(e)}"
+                )
+
+            # 分离音频
+            logger.info(f"开始分离音频: {file.filename}")
+            try:
+                with torch.no_grad():
+                    sources = apply_model(demucs_model, wav.to(device), device=device)
+                # sources shape: [batch, sources, channels, samples]
+                sources = sources[0].cpu()  # 移除batch维度
+                
+                # Demucs默认输出: [drums, bass, other, vocals]
+                stem_names = ["drums", "bass", "other", "vocals"]
+                
+                # 保存分离后的文件
+                model_output_dir = Path(output_dir) / model / Path(file.filename).stem
+                model_output_dir.mkdir(parents=True, exist_ok=True)
+                
+                for i, stem_name in enumerate(stem_names):
+                    if i < sources.shape[0]:
+                        stem_audio = sources[i]
+                        # 转换为立体声（如果需要）
+                        if stem_audio.shape[0] == 1:
+                            stem_audio = stem_audio.repeat(2, 1)
+                        
+                        output_path = model_output_dir / f"{stem_name}.wav"
+                        torchaudio.save(str(output_path), stem_audio, sr)
+                        logger.debug(f"保存轨道: {stem_name} -> {output_path}")
+                
+            except Exception as e:
+                logger.error(f"分离音频失败: {str(e)}")
+                # 如果CUDA失败，尝试CPU
+                if device == "cuda":
+                    logger.info("CUDA分离失败，尝试使用CPU进行分离")
+                    try:
+                        demucs_model = demucs_model.cpu()
+                        with torch.no_grad():
+                            sources = apply_model(demucs_model, wav, device="cpu")
+                        sources = sources[0]
+                        
+                        stem_names = ["drums", "bass", "other", "vocals"]
+                        model_output_dir = Path(output_dir) / model / Path(file.filename).stem
+                        model_output_dir.mkdir(parents=True, exist_ok=True)
+                        
+                        for i, stem_name in enumerate(stem_names):
+                            if i < sources.shape[0]:
+                                stem_audio = sources[i]
+                                if stem_audio.shape[0] == 1:
+                                    stem_audio = stem_audio.repeat(2, 1)
+                                output_path = model_output_dir / f"{stem_name}.wav"
+                                torchaudio.save(str(output_path), stem_audio, sr)
+                    except Exception as e2:
+                        logger.error(f"CPU分离也失败: {str(e2)}")
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"音频分离失败: {str(e2)}"
+                        )
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"音频分离失败: {str(e)}"
+                    )
+
+            # 查找分离后的文件
+            # Demucs输出结构: output_dir/model_name/track_name/stem.wav
+            model_output_dir = Path(output_dir) / model / Path(file.filename).stem
+            if not model_output_dir.exists():
+                # 尝试查找其他可能的输出结构
+                model_dirs = list(Path(output_dir).glob("*"))
+                if model_dirs:
+                    model_output_dir = model_dirs[0] / Path(file.filename).stem
+
+            if not model_output_dir.exists():
+                logger.error(f"找不到输出目录: {model_output_dir}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="分离完成但找不到输出文件"
+                )
+
+            # 收集分离后的文件
+            stem_files = {}
+            requested_stems = [s.strip() for s in stems.split(",")]
+            
+            for stem_file in model_output_dir.glob("*.wav"):
+                stem_name = stem_file.stem
+                if stem_name in requested_stems or stems == "all":
+                    stem_files[stem_name] = stem_file
+
+            if not stem_files:
+                logger.warning(f"未找到请求的轨道: {requested_stems}")
+                # 返回所有可用的轨道
+                for stem_file in model_output_dir.glob("*.wav"):
+                    stem_files[stem_file.stem] = stem_file
+
+            if not stem_files:
+                raise HTTPException(
+                    status_code=500,
+                    detail="分离完成但未找到任何输出文件"
+                )
+
+            logger.info(f"分离完成，找到 {len(stem_files)} 个轨道: {list(stem_files.keys())}")
+
+            # 如果只有一个文件，直接返回
+            if len(stem_files) == 1:
+                stem_name, stem_path = next(iter(stem_files.items()))
+                output_filename = f"{Path(file.filename).stem}_{stem_name}.wav"
+                output_path = UPLOAD_DIR / output_filename
+                
+                # 复制文件到上传目录
+                import shutil
+                shutil.copy2(stem_path, output_path)
+                
+                logger.info(f"返回单个文件: {output_filename}")
+                return FileResponse(
+                    path=output_path,
+                    filename=output_filename,
+                    media_type="audio/wav",
+                    headers={"Content-Disposition": f"attachment; filename={output_filename}"}
+                )
+            else:
+                # 多个文件，打包成ZIP
+                zip_filename = f"{Path(file.filename).stem}_separated.zip"
+                zip_path = UPLOAD_DIR / zip_filename
+                
+                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for stem_name, stem_path in stem_files.items():
+                        output_filename = f"{Path(file.filename).stem}_{stem_name}.wav"
+                        zipf.write(stem_path, output_filename)
+                        logger.debug(f"添加到ZIP: {output_filename}")
+
+                logger.info(f"返回ZIP文件: {zip_filename}, 包含 {len(stem_files)} 个文件")
+                return FileResponse(
+                    path=zip_path,
+                    filename=zip_filename,
+                    media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={zip_filename}"}
+                )
+
+        finally:
+            # 清理临时文件
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+                logger.debug(f"清理临时文件: {tmp_file_path}")
+            
+            # 清理输出目录
+            try:
+                import shutil
+                if os.path.exists(output_dir):
+                    shutil.rmtree(output_dir)
+                    logger.debug(f"清理输出目录: {output_dir}")
+            except Exception as e:
+                logger.warning(f"清理输出目录失败: {str(e)}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"分离音频失败: {file.filename}, 错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"分离失败: {str(e)}")

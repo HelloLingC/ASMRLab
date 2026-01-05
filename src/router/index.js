@@ -32,6 +32,11 @@ const router = createRouter({
       name: 'srt-translator',
       component: () => import('../views/SrtTranslatorView.vue'),
     },
+    {
+      path: '/config',
+      name: 'config',
+      component: () => import('../views/ConfigView.vue'),
+    },
   ],
 })
 

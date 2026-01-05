@@ -4,9 +4,19 @@ from .config import ALLOWED_ORIGINS, APP_TITLE, APP_VERSION, setup_logging
 from .routers.health import router as health_router
 from .routers.models import router as models_router
 from .routers.audio import router as audio_router
+from .routers.config import router as config_router
+from .utils.system_utils import check_cuda
+from loguru import logger
 
 # 初始化日志系统
 setup_logging()
+
+# 启动时检查CUDA
+cuda_info = check_cuda()
+if cuda_info["available"]:
+    logger.info(f"✅ CUDA可用: {cuda_info['device_count']} 个设备")
+else:
+    logger.info(f"⚠️ CUDA不可用: {cuda_info.get('error', '未知原因')}")
 
 # 创建FastAPI应用
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
@@ -24,6 +34,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(models_router)
 app.include_router(audio_router)
+app.include_router(config_router)
 
 @app.get("/")
 async def root():

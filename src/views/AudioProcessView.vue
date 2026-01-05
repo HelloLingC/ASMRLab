@@ -57,6 +57,10 @@
               class="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
               🔄 格式转换
             </button>
+            <button @click="separateVoice" :disabled="processing || separating"
+              class="px-8 py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none">
+              {{ separating ? '⏳ 分离中...' : '🎤 分离人声 (Demucs)' }}
+            </button>
           </div>
         </div>
       </div>
@@ -182,11 +186,20 @@
       </div>
 
       <!-- Loading State -->
-      <div class="glass rounded-2xl p-12 text-center shadow-xl" v-if="processing && !transcribing">
+      <div class="glass rounded-2xl p-12 text-center shadow-xl" v-if="processing && !transcribing && !separating">
         <div
           class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent mb-6">
         </div>
         <p class="text-xl font-semibold text-gray-700">处理中...</p>
+      </div>
+
+      <!-- Voice Separation Loading State -->
+      <div class="glass rounded-2xl p-12 text-center shadow-xl" v-if="separating">
+        <div
+          class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-orange-500 border-t-transparent mb-6">
+        </div>
+        <p class="text-xl font-semibold text-gray-700">正在分离音频，这可能需要几分钟...</p>
+        <p class="text-sm text-gray-600 mt-2">使用 Demucs 模型分离人声、鼓、贝斯和其他乐器</p>
       </div>
     </div>
   </div>
@@ -200,6 +213,7 @@ const fileInput = ref(null)
 const selectedFile = ref(null)
 const processing = ref(false)
 const transcribing = ref(false)
+const separating = ref(false)
 const downloadingSRT = ref(false)
 const result = ref(null)
 const transcriptionResult = ref(null)
@@ -408,6 +422,56 @@ const downloadSRT = async () => {
     error.value = err.message || '下载SRT失败'
   } finally {
     downloadingSRT.value = false
+  }
+}
+
+const separateVoice = async () => {
+  if (!selectedFile.value) {
+    error.value = '请先选择音频文件'
+    return
+  }
+
+  separating.value = true
+  processing.value = true
+  error.value = null
+
+  try {
+    const response = await audioAPI.separateVoice(selectedFile.value, 'htdemucs', 'vocals,drums,bass,other')
+
+    // 获取文件名
+    const contentDisposition = response.headers['content-disposition']
+    let filename = selectedFile.value.name.replace(/\.[^/.]+$/, '') + '_separated'
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '')
+      }
+    }
+
+    // 确定文件扩展名（ZIP或WAV）
+    const contentType = response.headers['content-type'] || ''
+    const isZip = contentType.includes('zip') || filename.endsWith('.zip')
+    if (!filename.includes('.')) {
+      filename += isZip ? '.zip' : '.wav'
+    }
+
+    // 创建下载链接
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+
+    alert(`音频分离完成！已下载: ${filename}`)
+  } catch (err) {
+    error.value = err.message || '音频分离失败'
+  } finally {
+    separating.value = false
+    processing.value = false
   }
 }
 

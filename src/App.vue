@@ -51,6 +51,14 @@ import { RouterLink, RouterView } from 'vue-router'
                 <span>SRT翻译</span>
               </span>
             </RouterLink>
+            <RouterLink to="/config"
+              class="px-4 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200 font-medium text-sm"
+              active-class="bg-indigo-100 text-indigo-600 shadow-sm">
+              <span class="flex items-center gap-2">
+                <span>⚙️</span>
+                <span>配置</span>
+              </span>
+            </RouterLink>
             <RouterLink to="/about"
               class="px-4 py-2 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200 font-medium text-sm"
               active-class="bg-indigo-100 text-indigo-600 shadow-sm">
